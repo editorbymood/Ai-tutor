@@ -1,0 +1,244 @@
+version: '3.8'
+
+services:
+  # MongoDB with replica set for high availability
+  mongodb-primary:
+    image: mongo:6.0
+    container_name: ai_tutor_mongodb_primary
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD}
+      MONGO_REPLICA_SET_NAME: rs0
+    volumes:
+      - mongodb_primary_data:/data/db
+    command: mongod --replSet rs0 --bind_ip_all
+    networks:
+      - ai_tutor_network
+
+  # Redis for caching and session storage
+  redis:
+    image: redis:7-alpine
+    container_name: ai_tutor_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    networks:
+      - ai_tutor_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Django Backend (multiple instances for load balancing)
+  backend-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: ai_tutor_backend_1
+    restart: always
+    environment:
+      - DEBUG=False
+      - MONGODB_HOST=mongodb-primary
+      - REDIS_URL=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - mongodb-primary
+      - redis
+    volumes:
+      - ./media:/app/media
+      - ./staticfiles:/app/staticfiles
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn backend.wsgi:application 
+             --bind 0.0.0.0:8000 
+             --workers 4 
+             --threads 2 
+             --worker-class gthread
+             --worker-tmp-dir /dev/shm
+             --max-requests 1000
+             --max-requests-jitter 50
+             --timeout 120
+             --graceful-timeout 30
+             --keep-alive 5
+             --access-logfile -
+             --error-logfile -
+             --log-level info"
+    networks:
+      - ai_tutor_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  backend-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: ai_tutor_backend_2
+    restart: always
+    environment:
+      - DEBUG=False
+      - MONGODB_HOST=mongodb-primary
+      - REDIS_URL=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - mongodb-primary
+      - redis
+    volumes:
+      - ./media:/app/media
+      - ./staticfiles:/app/staticfiles
+    command: >
+      sh -c "gunicorn backend.wsgi:application 
+             --bind 0.0.0.0:8000 
+             --workers 4 
+             --threads 2 
+             --worker-class gthread
+             --worker-tmp-dir /dev/shm
+             --max-requests 1000
+             --max-requests-jitter 50
+             --timeout 120
+             --graceful-timeout 30
+             --keep-alive 5
+             --access-logfile -
+             --error-logfile -
+             --log-level info"
+    networks:
+      - ai_tutor_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Celery Workers (multiple for parallel processing)
+  celery-worker-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: ai_tutor_celery_1
+    restart: always
+    environment:
+      - MONGODB_HOST=mongodb-primary
+      - REDIS_URL=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - mongodb-primary
+      - redis
+    command: celery -A backend worker -l info --concurrency=4 --max-tasks-per-child=100
+    networks:
+      - ai_tutor_network
+
+  celery-worker-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: ai_tutor_celery_2
+    restart: always
+    environment:
+      - MONGODB_HOST=mongodb-primary
+      - REDIS_URL=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - mongodb-primary
+      - redis
+    command: celery -A backend worker -l info --concurrency=4 --max-tasks-per-child=100
+    networks:
+      - ai_tutor_network
+
+  # Celery Beat (for scheduled tasks)
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: ai_tutor_celery_beat
+    restart: always
+    environment:
+      - MONGODB_HOST=mongodb-primary
+      - REDIS_URL=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - mongodb-primary
+      - redis
+    command: celery -A backend beat -l info
+    networks:
+      - ai_tutor_network
+
+  # Flower (Celery monitoring)
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: ai_tutor_flower
+    restart: always
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    command: celery -A backend flower --port=5555
+    networks:
+      - ai_tutor_network
+
+  # Nginx Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: ai_tutor_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.production.conf:/etc/nginx/nginx.conf:ro
+      - ./staticfiles:/app/staticfiles:ro
+      - ./media:/app/media:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend-1
+      - backend-2
+    networks:
+      - ai_tutor_network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ai_tutor_frontend
+    restart: always
+    depends_on:
+      - nginx
+    networks:
+      - ai_tutor_network
+
+volumes:
+  mongodb_primary_data:
+  redis_data:
+
+networks:
+  ai_tutor_network:
+    driver: bridge
