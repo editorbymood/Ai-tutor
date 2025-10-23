@@ -1,6 +1,7 @@
 """
 URL configuration for AI-Powered Personal Tutor project.
 """
+
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -11,25 +12,25 @@ from backend import health
 
 urlpatterns = [
     # Admin
-    path('admin/', admin.site.urls),
-    
+    path("admin/", admin.site.urls),
     # Health check endpoints (for load balancers and monitoring)
-    path('health/', health.health_check, name='health_check'),
-    path('health/ready/', health.readiness_check, name='readiness_check'),
-    path('health/live/', health.liveness_check, name='liveness_check'),
-    path('metrics/', health.metrics, name='metrics'),
-    path('metrics/cache/', health.cache_stats, name='cache_stats'),
-    path('metrics/database/', health.database_stats, name='database_stats'),
-    
+    path("health/", health.health_check, name="health_check"),
+    path("health/ready/", health.readiness_check, name="readiness_check"),
+    path("health/live/", health.liveness_check, name="liveness_check"),
+    path("metrics/", health.metrics, name="metrics"),
+    path("metrics/cache/", health.cache_stats, name="cache_stats"),
+    path("metrics/database/", health.database_stats, name="database_stats"),
     # API endpoints
-    path('api/auth/', include('apps.users.urls')),
-    path('api/courses/', include('apps.courses.urls')),
-    path('api/assessments/', include('apps.assessments.urls')),
-    path('api/ai-tutor/', include('apps.ai_tutor.urls')),
-    path('api/analytics/', include('apps.analytics.urls')),
-    
+    path("api/auth/", include("apps.users.urls")),
+    path("api/courses/", include("apps.courses.urls")),
+    path("api/assessments/", include("apps.assessments.urls")),
+    path("api/ai-tutor/", include("apps.ai_tutor.urls")),
+    path("api/analytics/", include("apps.analytics.urls")),
+    path("api/gamification/", include("apps.gamification.urls")),
+    path("api/social/", include("apps.social.urls")),
+    path("api/voice/", include("apps.voice.urls")),
     # JWT Token endpoints
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 ]
 
 # Serve media files in development

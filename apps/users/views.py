@@ -27,8 +27,7 @@ def register_user(request):
     if serializer.is_valid():
         user = serializer.save()
         
-        # Create user preferences
-        UserPreferences.objects.create(user=user)
+        # UserPreferences is automatically created by signal handler
         
         # Generate tokens
         refresh = RefreshToken.for_user(user)

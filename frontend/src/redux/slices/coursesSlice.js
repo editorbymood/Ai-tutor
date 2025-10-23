@@ -16,7 +16,8 @@ export const fetchCourses = createAsyncThunk(
     try {
       const params = new URLSearchParams(filters);
       const response = await api.get(`/courses/?${params}`);
-      return response.data.data;
+      // Handle paginated response
+      return response.data.results || response.data.data || response.data || [];
     } catch (error) {
       return rejectWithValue(error.response?.data?.error?.message || 'Failed to fetch courses');
     }

@@ -15,7 +15,7 @@ export const fetchChatSessions = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get('/ai-tutor/chat/');
-      return response.data.data;
+      return response.data.data || response.data || [];
     } catch (error) {
       return rejectWithValue(error.response?.data?.error?.message || 'Failed to fetch sessions');
     }
@@ -27,8 +27,9 @@ export const createChatSession = createAsyncThunk(
   async (sessionData, { rejectWithValue }) => {
     try {
       const response = await api.post('/ai-tutor/chat/', sessionData);
-      return response.data.data;
+      return response.data.data || response.data;
     } catch (error) {
+      console.error('Create session error:', error.response?.data);
       return rejectWithValue(error.response?.data?.error?.message || 'Failed to create session');
     }
   }
@@ -39,9 +40,10 @@ export const sendMessage = createAsyncThunk(
   async ({ sessionId, message }, { rejectWithValue }) => {
     try {
       const response = await api.post(`/ai-tutor/chat/${sessionId}/message/`, { message });
-      return response.data.data;
+      return response.data.data || response.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.error?.message || 'Failed to send message');
+      console.error('Send message error:', error.response?.data);
+      return rejectWithValue(error.response?.data?.error?.message || error.message || 'Failed to send message');
     }
   }
 );
@@ -85,9 +87,19 @@ const aiTutorSlice = createSlice({
         state.error = action.payload;
       })
       // Create Session
+      .addCase(createChatSession.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(createChatSession.fulfilled, (state, action) => {
+        state.loading = false;
         state.chatSessions.unshift(action.payload);
         state.currentSession = action.payload;
+        state.messages = [];
+      })
+      .addCase(createChatSession.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
       // Send Message
       .addCase(sendMessage.pending, (state) => {

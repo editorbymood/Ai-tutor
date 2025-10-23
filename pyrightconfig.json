@@ -1,0 +1,27 @@
+{
+  "include": [
+    "apps",
+    "backend",
+    "tests"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/migrations",
+    "venv",
+    "staticfiles",
+    "media"
+  ],
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": false,
+  "reportAttributeAccessIssue": "warning",
+  "reportOptionalSubscript": "warning",
+  "reportIndexIssue": "warning",
+  "reportCallIssue": "warning",
+  "reportArgumentType": "warning",
+  "pythonVersion": "3.9",
+  "typeCheckingMode": "basic",
+  "strictParameterNoneValue": false,
+  "strictDictionaryInference": false,
+  "strictListInference": false
+}

@@ -1,7 +1,13 @@
 """
 Celery tasks for async AI operations.
 """
-from celery import shared_task
+try:
+    from celery import shared_task
+except ImportError:
+    # Celery not installed, create dummy decorator
+    def shared_task(func):
+        return func
+        
 from .gemini_service import gemini_service
 import logging
 

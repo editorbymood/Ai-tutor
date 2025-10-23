@@ -24,8 +24,7 @@ def student_user(db):
     return User.objects.create_user(
         email='student@test.com',
         password='testpass123',
-        first_name='Test',
-        last_name='Student',
+        full_name='Test Student',
         role='student'
     )
 
@@ -36,8 +35,7 @@ def teacher_user(db):
     return User.objects.create_user(
         email='teacher@test.com',
         password='testpass123',
-        first_name='Test',
-        last_name='Teacher',
+        full_name='Test Teacher',
         role='teacher'
     )
 
@@ -48,8 +46,7 @@ def admin_user(db):
     return User.objects.create_superuser(
         email='admin@test.com',
         password='testpass123',
-        first_name='Test',
-        last_name='Admin'
+        full_name='Test Admin'
     )
 
 
@@ -76,7 +73,8 @@ def course(teacher_user):
         instructor=teacher_user,
         difficulty='intermediate',
         category='programming',
-        is_published=True
+        estimated_duration=40,
+        status='published'
     )
 
 
@@ -134,8 +132,7 @@ def bulk_users(db):
         user = User.objects.create_user(
             email=f'user{i}@test.com',
             password='testpass123',
-            first_name=f'User{i}',
-            last_name='Test',
+            full_name=f'User{i} Test',
             role=random.choice(['student', 'teacher'])
         )
         users.append(user)
@@ -153,7 +150,8 @@ def bulk_courses(teacher_user):
             instructor=teacher_user,
             difficulty=random.choice(['beginner', 'intermediate', 'advanced']),
             category=random.choice(['programming', 'math', 'science']),
-            is_published=True
+            estimated_duration=random.choice([20, 40, 60]),
+            status='published'
         )
         courses.append(course)
     return courses

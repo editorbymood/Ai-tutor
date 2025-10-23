@@ -1,7 +1,7 @@
 """
 Views for course management.
 """
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, serializers
 from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -17,7 +17,7 @@ from .permissions import IsTeacherOrReadOnly, IsEnrolledStudent
 class CourseListCreateView(generics.ListCreateAPIView):
     """List all courses or create a new course."""
     
-    permission_classes = [IsTeacherOrReadOnly]
+    permission_classes = [permissions.AllowAny]  # Allow anyone to view courses
     
     def get_serializer_class(self):
         if self.request.method == 'GET':
@@ -43,6 +43,12 @@ class CourseListCreateView(generics.ListCreateAPIView):
             queryset = queryset.filter(title__icontains=search)
         
         return queryset
+    
+    def get_permissions(self):
+        """Allow anyone to view courses, but require teacher role to create."""
+        if self.request.method == 'POST':
+            return [permissions.IsAuthenticated(), IsTeacherOrReadOnly()]
+        return [permissions.AllowAny()]
     
     def perform_create(self, serializer):
         serializer.save(instructor=self.request.user)
@@ -114,11 +120,11 @@ def update_lesson_progress(request, lesson_id):
     )
     
     # Update progress
-    progress.time_spent = request.data.get('time_spent', progress.time_spent)
-    progress.completion_percentage = request.data.get(
+    progress.time_spent = int(request.data.get('time_spent', progress.time_spent) or 0)
+    progress.completion_percentage = int(request.data.get(
         'completion_percentage',
         progress.completion_percentage
-    )
+    ) or 0)
     progress.notes = request.data.get('notes', progress.notes)
     
     # Mark as completed if 100%

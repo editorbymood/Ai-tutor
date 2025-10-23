@@ -11,7 +11,7 @@ from .serializers import (
     ChatSessionSerializer, ChatMessageSerializer,
     AIGeneratedContentSerializer, StudyRecommendationSerializer
 )
-from .gemini_service import gemini_service
+from .hybrid_ai_service import hybrid_ai_service
 from .tasks import generate_content_async
 import logging
 
@@ -29,6 +29,24 @@ class ChatSessionListCreateView(generics.ListCreateAPIView):
     
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return success_response(
+            data=serializer.data,
+            message="Chat sessions retrieved successfully"
+        )
+    
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return success_response(
+            data=serializer.data,
+            message="Chat session created successfully",
+            status_code=status.HTTP_201_CREATED
+        )
 
 
 class ChatSessionDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -78,8 +96,8 @@ def send_chat_message(request, session_id):
     
     messages.insert(0, {'role': 'system', 'content': system_context})
     
-    # Get AI response
-    response = gemini_service.chat(messages)
+    # Get AI response using hybrid service
+    response = hybrid_ai_service.chat(messages, task_type='chat')
     
     if response['success']:
         # Save AI response
@@ -121,8 +139,8 @@ def generate_lesson_content(request):
             status_code=status.HTTP_400_BAD_REQUEST
         )
     
-    # Generate content
-    response = gemini_service.generate_lesson(
+    # Generate content using hybrid service
+    response = hybrid_ai_service.generate_lesson(
         topic=topic,
         learning_style=learning_style,
         difficulty=difficulty
@@ -167,7 +185,7 @@ def generate_quiz(request):
             status_code=status.HTTP_400_BAD_REQUEST
         )
     
-    response = gemini_service.generate_quiz(
+    response = hybrid_ai_service.generate_quiz(
         topic=topic,
         num_questions=num_questions,
         difficulty=difficulty
@@ -209,7 +227,7 @@ def explain_concept(request):
             status_code=status.HTTP_400_BAD_REQUEST
         )
     
-    response = gemini_service.explain_concept(
+    response = hybrid_ai_service.explain_concept(
         concept=concept,
         learning_style=request.user.learning_style,
         context=context

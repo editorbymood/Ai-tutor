@@ -13,7 +13,7 @@ from functools import wraps
 logger = logging.getLogger(__name__)
 
 # Configure Gemini
-genai.configure(api_key=settings.GEMINI_API_KEY)
+genai.configure(api_key=settings.GEMINI_API_KEY)  # type: ignore[attr-defined]
 
 
 def cache_ai_response(timeout=3600):
@@ -59,9 +59,9 @@ def cache_ai_response(timeout=3600):
 class GeminiService:
     """Service class for interacting with Google Gemini API with caching and retry logic."""
     
-    def __init__(self, model_name='gemini-pro'):
+    def __init__(self, model_name='gemini-2.5-flash'):
         self.model_name = model_name
-        self.model = genai.GenerativeModel(model_name)
+        self.model = genai.GenerativeModel(model_name)  # type: ignore
         self.max_retries = 3
         self.retry_delay = 1  # seconds
     
@@ -104,7 +104,7 @@ class GeminiService:
             def _generate():
                 return self.model.generate_content(
                     prompt,
-                    generation_config=genai.types.GenerationConfig(
+                    generation_config=genai.types.GenerationConfig(  # type: ignore[attr-defined]
                         temperature=kwargs.get('temperature', 0.7),
                         top_p=kwargs.get('top_p', 0.95),
                         top_k=kwargs.get('top_k', 40),
@@ -117,11 +117,11 @@ class GeminiService:
             
             return {
                 'success': True,
-                'content': response.text,
+                'content': response.text,  # type: ignore[union-attr]
                 'model': self.model_name,
                 'response_time': response_time,
-                'prompt_tokens': response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else None,
-                'completion_tokens': response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else None,
+                'prompt_tokens': response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else None,  # type: ignore[union-attr]
+                'completion_tokens': response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else None,  # type: ignore[union-attr]
             }
         
         except Exception as e:
